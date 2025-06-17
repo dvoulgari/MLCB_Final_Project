@@ -12,7 +12,7 @@ https://github.com/ba306/immune-cell-signature-discovery-classification-paper
 # Technical Approach
 We're primarily using R & Python for this project.
 
-# Key Libraries:
+## Key Libraries:
 
 pandas & numpy: For data handling and manipulation.
 xgboost & lightgbm: For implementing our alternative classification models.
