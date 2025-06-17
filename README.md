@@ -14,8 +14,8 @@ We're primarily using R & Python for this project.
 
 ## Key Libraries:
 
-pandas & numpy: For data handling and manipulation.
-xgboost & lightgbm: For implementing our alternative classification models.
-scikit-learn: For various machine learning utilities, including performance metrics.
-shap: For model interpretability to understand gene contributions to classifications.
-matplotlib & seaborn: For data visualization.
+- pandas & numpy: For data handling and manipulation.
+- xgboost & lightgbm: For implementing our alternative classification models.
+- scikit-learn: For various machine learning utilities, including performance metrics.
+- shap: For model interpretability to understand gene contributions to classifications.
+- matplotlib & seaborn: For data visualization.
