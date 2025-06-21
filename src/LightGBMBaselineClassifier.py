@@ -9,6 +9,7 @@ import joblib
 from pathlib import Path
 from MetricsCore import MetricsCore
 from PipelineBuilder import PipelineBuilder
+from DiskIO import DiskIO
 
 DEFAULT_SEED = 42
 DEFAULT_TEST_SIZE = 0.33
@@ -33,6 +34,7 @@ class LightGBMBaselineClassifier:
         self.pipeline = self.pipeline_builder.build(
             LGBMClassifier(random_state=self.random_state)
         )
+        self.io = DiskIO(self.models_dir)
 
     def load_and_prepare_data(self):
         data = pd.read_csv(self.csv_path, index_col=0)
@@ -69,10 +71,8 @@ class LightGBMBaselineClassifier:
         plt.show()
 
     def save_model(self, suffix=''):
+        model_name = f"LightGBM{'_' + suffix if suffix else ''}"
+        encoder_name = "label_encoder"
 
-        parts = ["LightGBM"]
-        if suffix:
-            parts.append(suffix)
-        filename = self.models_dir / f"{'_'.join(parts)}.pkl"
-
-        joblib.dump(self.pipeline, filename)
+        self.io.save(self.pipeline, model_name)
+        self.io.save(self.label_encoder, encoder_name)
