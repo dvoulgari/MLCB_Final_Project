@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 from pathlib import Path
-from make_pipeline import make_pipeline
 from MetricsCore import MetricsCore
+from PipelineBuilder import PipelineBuilder
 
 DEFAULT_SEED = 42
 DEFAULT_TEST_SIZE = 0.33
@@ -24,13 +24,15 @@ class LightGBMBaselineClassifier:
         self.csv_path = csv_path
         self.test_size = test_size
         self.random_state = random_state
-        self.pipeline = make_pipeline(
-            LGBMClassifier(random_state=self.random_state))
         self.label_encoder = LabelEncoder()
         self.models_dir = Path(MODELS_DIR)
         self.models_dir.mkdir(parents=True, exist_ok=True)
 
         self.metrics_calculator = MetricsCore()
+        self.pipeline_builder = PipelineBuilder()
+        self.pipeline = self.pipeline_builder.build(
+            LGBMClassifier(random_state=self.random_state)
+        )
 
     def load_and_prepare_data(self):
         data = pd.read_csv(self.csv_path, index_col=0)

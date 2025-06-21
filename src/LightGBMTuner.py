@@ -10,7 +10,7 @@ from LightGBMBaselineClassifier import (
     DEFAULT_SEED,
     TRAINING_DATASET
 )
-from sklearn.pipeline import make_pipeline
+from PipelineBuilder import PipelineBuilder
 
 # Suppress warnings to keep notebooks clean. Comment this out while debugging.
 warnings.filterwarnings('ignore')
@@ -34,9 +34,10 @@ class LightGBMTuner(LightGBMBaselineClassifier):
     def train_best_model(self):
         if self.best_params is None:
             raise ValueError("You must run tune() first.")
-        self.pipeline = make_pipeline(
-            LGBMClassifier(**self.best_params, random_state=self.random_state)
-        )
+
+        tuned_model = LGBMClassifier(
+            **self.best_params, random_state=self.random_state)
+        self.pipeline = self.pipeline_builder.build(tuned_model)
         self.pipeline.fit(self.X_train, self.y_train)
 
     def print_best_params(self):
@@ -62,10 +63,9 @@ class LightGBMTuner(LightGBMBaselineClassifier):
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
         }
 
-        pipeline = make_pipeline(
-            LGBMClassifier(**params, verbosity=-1,
-                           random_state=self.random_state)
-        )
+        tuned_model = LGBMClassifier(
+            **params, verbosity=-1, random_state=self.random_state)
+        pipeline = self.pipeline_builder.build(tuned_model)
 
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_val)
