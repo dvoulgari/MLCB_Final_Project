@@ -10,7 +10,6 @@ from LightGBMBaselineClassifier import (
     DEFAULT_SEED,
     TRAINING_DATASET
 )
-from PipelineBuilder import PipelineBuilder
 
 # Suppress warnings to keep notebooks clean. Comment this out while debugging.
 warnings.filterwarnings('ignore')
