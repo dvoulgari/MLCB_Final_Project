@@ -31,25 +31,33 @@ class LightGBMBaselineClassifier:
 
         self.metrics_calculator = MetricsCore()
         self.pipeline_builder = PipelineBuilder()
-        self.pipeline = self.pipeline_builder.build(
-            LGBMClassifier(random_state=self.random_state)
-        )
         self.io = DiskIO(self.models_dir)
 
     def load_and_prepare_data(self):
         data = pd.read_csv(self.csv_path, index_col=0)
 
         self.features = data.drop(columns=["label"])
-        self.labels = self.label_encoder.fit_transform(data["label"])
+        labels_raw = data["label"]
 
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-            self.features, self.labels,
+        # Do the split on raw labels
+        X_train, X_test, y_train_raw, y_test_raw = train_test_split(
+            self.features, labels_raw,
             test_size=self.test_size,
-            stratify=self.labels,
+            stratify=labels_raw,
             random_state=self.random_state
         )
 
+        # Fit encoder only on training labels
+        self.label_encoder.fit(y_train_raw)
+        self.y_train = self.label_encoder.transform(y_train_raw)
+        self.y_test = self.label_encoder.transform(y_test_raw)
+
+        self.X_train = X_train
+        self.X_test = X_test
+
     def train(self):
+        model = LGBMClassifier(random_state=self.random_state)
+        self.pipeline = self.pipeline_builder.build(model)
         self.pipeline.fit(self.X_train, self.y_train)
 
     def evaluate(self):
