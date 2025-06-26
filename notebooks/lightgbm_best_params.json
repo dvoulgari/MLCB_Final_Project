@@ -1,0 +1,14 @@
+{
+    "boosting_type": "goss",
+    "num_leaves": 110,
+    "max_depth": 12,
+    "learning_rate": 0.018025396537710237,
+    "n_estimators": 294,
+    "min_child_samples": 54,
+    "feature_fraction": 0.5000409245307114,
+    "reg_alpha": 0.73960046979533,
+    "reg_lambda": 0.027342699931855563,
+    "max_bin": 439,
+    "min_gain_to_split": 0.17445560307797187,
+    "path_smooth": 0.36703686616113795
+}
