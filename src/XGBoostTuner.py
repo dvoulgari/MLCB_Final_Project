@@ -176,29 +176,6 @@ class XGBoostTunerCV(XGBoostBaselineClassifier):
 
         plt.tight_layout()
         plt.show()
-    
-    # def train_and_save_final_model_on_full_data(self, suffix='final'):
-    #     # Combine train and test data for final training
-    #     X_full = pd.concat([self.X_train, self.X_test])
-    #     y_full = pd.concat([pd.Series(self.y_train), pd.Series(self.y_test)])
-
-    #     # Create fresh XGBClassifier with best params (unfitted)
-    #     model = XGBClassifier(
-    #         **self.best_params,
-    #         random_state=self.random_state,
-    #         use_label_encoder=False,
-    #         eval_metric="mlogloss"
-    #     )
-
-    #     # Build the pipeline with the fresh model
-    #     final_pipeline = self.pipeline_builder.build(model)
-
-    #     # Fit the entire pipeline (scaler + model) on full data
-    #     final_pipeline.fit(X_full, y_full)
-
-    #     # Save the fitted pipeline and label encoder
-    #     self.save_model(suffix=suffix, pipeline=final_pipeline, label_encoder=self.label_encoder)
-
 
     def train_and_save_final_model_on_full_data(self, suffix='final'):
         # Combine train and test data for final training
@@ -220,38 +197,6 @@ class XGBoostTunerCV(XGBoostBaselineClassifier):
         # Save the fitted pipeline and label encoder
         self.save_model(suffix=suffix, pipeline=final_pipeline, label_encoder=self.label_encoder)
 
-    # def evaluate_on_external_testset(self, external_csv_path="data/kotliarov.csv", suffix='final'):
-    #     df = pd.read_csv(external_csv_path)
-    #     X_ext = df.drop(columns=["label"])
-    #     y_ext = df["label"]
-
-    #     pipeline, label_encoder = self.load_model(suffix=suffix)
-
-    #     # Show any unseen labels
-    #     known_labels = set(label_encoder.classes_)
-    #     test_labels = set(y_ext)
-    #     unseen_labels = test_labels - known_labels
-    #     if unseen_labels:
-    #         print(f"[WARNING] Unseen labels in external test set: {unseen_labels}")
-
-    #     # Filter out unseen labels 
-    #     mask = y_ext.isin(known_labels)
-    #     X_ext = X_ext[mask]
-    #     y_ext = y_ext[mask]
-
-    #     y_ext_encoded = label_encoder.transform(y_ext)
-    #     y_pred = pipeline.predict(X_ext)
-
-    #     # Generate classification report, confusion matrix, and other stats
-    #     report = classification_report(
-    #         y_ext_encoded, y_pred,
-    #         target_names=label_encoder.classes_,
-    #         output_dict=True
-    #     )
-    #     cm = confusion_matrix(y_ext_encoded, y_pred)
-    #     stats = self.metrics_calculator.compute(y_ext_encoded, y_pred)
-
-    #     return report, cm, stats
 
     def evaluate_on_external_testset(self, external_csv_path="data/kotliarov.csv", suffix='final'):
         # Load pipeline and label encoder
