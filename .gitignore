@@ -1,2 +1,4 @@
 data/hao.csv
 data/kotliarov.csv
+.DS_Store
+src/__pycache__/
