@@ -44,7 +44,7 @@ class BaseTreeTunerCV(BaseTreeClassifier, ABC):
             score = f1_score(y_val_fold, preds, average="weighted")
             scores.append(score)
 
-        return np.mean(scores)
+        return np.median(scores)
 
     def tune_hyperparameters(self):
         import optuna
@@ -77,7 +77,8 @@ class BaseTreeTunerCV(BaseTreeClassifier, ABC):
         self.best_params = best_params_list[best_idx]
 
         print(f"[Nested CV] Outer F1 Scores: {outer_scores}")
-        print(f"[Nested CV] Mean Outer F1 Score: {np.mean(outer_scores):.4f}")
+        print(
+            f"[Nested CV] Median Outer F1 Score: {np.median(outer_scores):.4f}")
 
     def train_internal_split(self):
         if self.best_params is None:
