@@ -5,6 +5,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 from BaseTreeClassifier import BaseTreeClassifier
+from scipy.stats import bootstrap
 
 
 class BaseTreeTunerCV(BaseTreeClassifier, ABC):
@@ -79,6 +80,17 @@ class BaseTreeTunerCV(BaseTreeClassifier, ABC):
         print(f"[Nested CV] Outer F1 Scores: {outer_scores}")
         print(
             f"[Nested CV] Median Outer F1 Score: {np.median(outer_scores):.4f}")
+
+        # Bootstrap 95% CI on outer_scores
+        res = bootstrap((np.array(outer_scores),), np.median,
+                        confidence_level=0.95, n_resamples=1000, method="basic")
+        ci_low, ci_high = res.confidence_interval.low, res.confidence_interval.high
+        sem = np.std(outer_scores, ddof=1) / \
+            np.sqrt(len(outer_scores))  # standard error
+
+        print(
+            f"[Nested CV] 95% CI for median F1: [{ci_low:.4f}, {ci_high:.4f}]")
+        print(f"[Nested CV] Standard Error of Median (approx): {sem:.4f}")
 
     def train_internal_split(self):
         if self.best_params is None:
