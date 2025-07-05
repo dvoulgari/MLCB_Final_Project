@@ -18,13 +18,14 @@ from LightGBMBaselineClassifier import (
 )
 from DiskIO import DiskIO
 from PipelineBuilder import PipelineBuilder
+from MetricsCore import MetricsCalculator
 
 warnings.filterwarnings("ignore")
 
 
 class LightGBMTunerCV(LightGBMBaselineClassifier):
     def __init__(self, csv_path=TRAINING_DATASET, test_size=DEFAULT_TEST_SIZE,
-                 random_state=DEFAULT_SEED, n_trials=20):
+                 random_state=DEFAULT_SEED, n_trials=50):
         super().__init__(csv_path, test_size, random_state)
         self.n_trials = n_trials
         self.best_params = None
@@ -218,30 +219,94 @@ class LightGBMTunerCV(LightGBMBaselineClassifier):
         plt.show()
 
 
-    def train_and_save_final_model_on_full_data(self, suffix='final'):
+    def bootstrap_metrics(self, X, y, n_bootstrap=1000, random_state=None):
         """
-        Train and save the final model on the entire internal dataset (train + test).
-
-        This step uses the best hyperparameters found during nested CV and fits on
-        the full Hao dataset (~100% internal data) to maximize training data usage.
-
-        The resulting model is saved for later inference and external evaluation.
+        Calculate bootstrap confidence intervals and standard error
+        Returns dictionary with metrics, CIs, and standard error
+        
+        Args:
+            X: Features to predict on
+            y: True labels
+            n_bootstrap: Number of bootstrap samples
+            random_state: Random seed for reproducibility
+            
+        Returns:
+            Dictionary containing mean, standard error, and confidence intervals for each metric
         """
-        X_full = pd.concat([self.X_train, self.X_test])
-        y_full = np.concatenate([self.y_train, self.y_test])
+        # Initialize metrics calculator
+        metrics_calc = MetricsCore()  
+        
+        # Initialize storage for all metrics
+        metrics = {name: [] for name in self.METRICS}
+        
+        rng = np.random.RandomState(random_state or self.random_state)
+        
+        for _ in range(n_bootstrap):
+            # Create bootstrap sample
+            indices = rng.choice(len(y), size=len(y), replace=True)
+            X_bs = X.iloc[indices] if hasattr(X, 'iloc') else X[indices]
+            y_bs = y[indices]
 
-        model = lgb.LGBMClassifier(
-            **self.best_params,
-            random_state=self.random_state
-        )
+            # Calculate metrics
+            preds = self.pipeline.predict(X_bs)
+            metrics_dict = metrics_calc.compute(y_bs, preds)
+            
+            # Store all metrics
+            for name, value in metrics_dict.items():
+                metrics[name].append(value)
+        
+        # Calculate mean, CI, and standard error
+        ci = {}
+        for metric, values in metrics.items():
+            mean = np.mean(values)
+            std_error = np.std(values, ddof=1)  # Standard error of the mean (SEM)
+            
+            ci[metric] = {
+                'mean': mean,
+                'std_error': std_error,  
+                'lower': np.percentile(values, 2.5),
+                'upper': np.percentile(values, 97.5)
+            }
+        
+        return ci
 
-        final_pipeline = self.pipeline_builder.build(model)
-        final_pipeline.fit(X_full, y_full)
-
-        self.save_model(suffix=suffix, pipeline=final_pipeline,
-                        label_encoder=self.label_encoder)
-
-    def evaluate_on_external_testset(self, external_csv_path="data/kotliarov.csv", suffix='final'):
+    def plot_bootstrap_results(self, ci, title="Bootstrap Results (Mean ± SEM)"):
+        """
+        Plot metrics with error bars showing ±1 SEM
+        
+        Args:
+            ci: Dictionary containing bootstrap results from bootstrap_metrics()
+            title: Plot title
+        """
+        metrics = list(ci.keys())
+        means = [ci[m]['mean'] for m in metrics]
+        errors = [ci[m]['std_error'] for m in metrics]  # Use SEM instead of CI
+        
+        plt.figure(figsize=(12, 6))
+        plt.errorbar(metrics, means, yerr=errors, fmt='o', 
+                    capsize=5, capthick=2, markersize=8)
+        plt.title(title)
+        plt.ylabel('Score (0-1 scale)')
+        plt.ylim(0, 1)
+        plt.grid(True)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+    
+    def evaluate_on_external_testset(self, external_csv_path="data/kotliarov.csv", suffix='final', 
+                                  n_bootstrap=1000, plot_results=True):
+        """
+        Enhanced evaluation with bootstrap confidence intervals
+        
+        Args:
+            external_csv_path: Path to external test data
+            suffix: Model suffix for loading
+            n_bootstrap: Number of bootstrap samples
+            plot_results: Whether to plot bootstrap results
+            
+        Returns:
+            Tuple of (classification_report, confusion_matrix, stats_with_bootstrap)
+        """
         loaded_obj = self.io.load(name="LightGBM", suffix=suffix)
 
         if isinstance(loaded_obj, tuple) and len(loaded_obj) == 2:
@@ -269,5 +334,13 @@ class LightGBMTunerCV(LightGBMBaselineClassifier):
         )
         cm = confusion_matrix(y_ext_encoded, y_pred)
         stats = self.metrics_calculator.compute(y_ext_encoded, y_pred)
-
+        
+        # Add bootstrap CIs
+        bootstrap_ci = self.bootstrap_metrics(X_ext, y_ext_encoded, n_bootstrap=n_bootstrap)
+        stats['bootstrap_ci'] = bootstrap_ci
+        
+        if plot_results:
+            self.plot_bootstrap_results(bootstrap_ci, 
+                                     title="Bootstrap Confidence Intervals on Test Set")
+        
         return report, cm, stats
