@@ -29,14 +29,15 @@ class LightGBMBaselineClassifier:
 
         self.metrics_calculator = MetricsCore()
         self.pipeline_builder = PipelineBuilder()
-        self.io = DiskIO()
+        self.io = DiskIO(MODELS_DIR)
 
     def load_and_prepare_data(self):
         data = pd.read_csv(self.csv_path, index_col=0)
+
         self.features = data.drop(columns=["label"])
         labels_raw = data["label"]
 
-        # Split data
+        # Split data *before* fitting the LabelEncoder - Split hao.csv internally here for tuning/validation
         self.X_train, self.X_test, self.y_train_raw, self.y_test_raw = train_test_split(
             self.features, labels_raw,
             test_size=self.test_size,
@@ -44,8 +45,10 @@ class LightGBMBaselineClassifier:
             random_state=self.random_state
         )
 
-        # Fit and transform labels
+        # Fit LabelEncoder only on training labels
         self.label_encoder.fit(self.y_train_raw)
+
+        # Transform both training and testing labels
         self.y_train = self.label_encoder.transform(self.y_train_raw)
         self.y_test = self.label_encoder.transform(self.y_test_raw)
 
@@ -91,10 +94,10 @@ class LightGBMBaselineClassifier:
         self.io.save(pipeline, name="LightGBM", suffix=suffix) 
         self.io.save(label_encoder, name="label_encoder", suffix=suffix)
 
-    def load_model(self, suffix='', base_dir='models'):
+    def load_model(self, suffix='baseline', base_dir='models'):
         from DiskIO import DiskIO
         io = DiskIO(base_dir=base_dir)
 
         pipeline = io.load(name="LightGBM", suffix=suffix) 
-        label_encoder = io.load(name="label_encoder", suffix=suffix)
+        label_encoder = io.load(name="label_encoder_LightGBM", suffix=suffix)
         return pipeline, label_encoder

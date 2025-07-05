@@ -84,10 +84,10 @@ class XGBoostBaselineClassifier:
         self.io.save(pipeline, name="XGBoost", suffix=suffix)
         self.io.save(label_encoder, name="label_encoder", suffix=suffix)
 
-    def load_model(self, suffix='', base_dir='models'):
+    def load_model(self, suffix='baseline', base_dir='models'):
         from DiskIO import DiskIO
         io = DiskIO(base_dir=base_dir)
 
         pipeline = io.load(name="XGBoost", suffix=suffix)
-        label_encoder = io.load(name="label_encoder", suffix=suffix)
+        label_encoder = io.load(name="label_encoder_XGBoost", suffix=suffix)
         return pipeline, label_encoder

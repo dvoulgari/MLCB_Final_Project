@@ -2,6 +2,7 @@ import os
 import joblib
 from pathlib import Path
 
+models_dir = "../models"
 
 class DiskIO:
     """

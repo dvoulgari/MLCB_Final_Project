@@ -74,6 +74,7 @@ class XGBoostTunerCV(XGBoostBaselineClassifier):
 
             model = XGBClassifier(**params)
             model.fit(X_train_fold, y_train_fold)
+            
             preds = model.predict(X_val_fold)
             scores.append(f1_score(y_val_fold, preds, average="weighted"))
 
@@ -236,6 +237,14 @@ class XGBoostTunerCV(XGBoostBaselineClassifier):
         )
     
     def evaluate_on_external_testset(self, external_csv_path="../data/kotliarov.csv", suffix='final'):
+        """
+        Args:
+            external_csv_path: Path to external test data
+            suffix: Model suffix for loading
+            
+        Returns:
+            Tuple of (classification_report, confusion_matrix, stats_with_bootstrap)
+        """
         loaded_obj = self.io.load(name="XGBoost", suffix=suffix)
 
         if isinstance(loaded_obj, tuple) and len(loaded_obj) == 2:
