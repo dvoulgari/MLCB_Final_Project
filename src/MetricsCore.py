@@ -6,11 +6,35 @@ from scipy.stats import bootstrap
 
 
 class MetricsCore:
+    """
+    Base class for computing classification metrics and confidence intervals (CIs)
+    from predicted and true labels. Supports Accuracy, Recall, Specificity, PPV, NPV, F1.
+    """
+
     def __init__(self, metrics=None):
+        """
+        Initialize the metrics calculator.
+
+        Args:
+            metrics (list of str): Optional list of metric names to compute.
+                                   Defaults to all supported metrics.
+        """
         self.METRICS = metrics or ['Accuracy',
                                    'Recall', 'Specificity', 'PPV', 'NPV', 'F1']
 
     def compute(self, y_true, y_pred):
+        """
+        Compute classification metrics as percentages.
+
+        Args:
+            y_true (array-like): Ground truth labels.
+            y_pred (array-like): Predicted labels.
+
+        Returns:
+            dict: Metric name → score (0–100 range).
+        """
+
+        # Ensure all classes are included
         labels = np.unique(np.concatenate((y_true, y_pred)))
         cm = confusion_matrix(y_true, y_pred, labels=labels)
 
@@ -40,8 +64,24 @@ class MetricsCore:
 
     def compute_with_ci(self, y_true, y_pred, n_resamples=1000, alpha=0.05):
         """
-        Compute metrics with confidence intervals using bootstrapping.
-        Returns a dict of dicts: {metric: {value, ci_low, ci_high, sem}}
+        Compute metrics with 95% confidence intervals via bootstrapping.
+
+        Args:
+            y_true (array-like): Ground truth labels.
+            y_pred (array-like): Predicted labels.
+            n_resamples (int): Number of bootstrap resamples.
+            alpha (float): Significance level (default 0.05 for 95% CI).
+
+        Returns:
+            dict: {
+                metric_name: {
+                    'value': score in percent,
+                    'ci_low': lower bound of CI,
+                    'ci_high': upper bound of CI,
+                    'sem': standard error of the mean
+                },
+                ...
+            }
         """
         results = {}
         rng = np.random.default_rng(42)  # for reproducibility
@@ -89,11 +129,34 @@ class MetricsCore:
 
 
 class MetricsCalculator(MetricsCore):
+    """
+    Extension of MetricsCore that supports applying metrics directly to scikit-learn models.
+    """
+
     def compute_from_model(self, model, X, y_true, with_ci=False, **kwargs):
+        """
+        Compute metrics from a fitted classifier and input data.
+
+        Args:
+            model: Fitted scikit-learn classifier with `.predict()` method.
+            X (array-like): Input features.
+            y_true (array-like): True labels.
+            with_ci (bool): If True, return metrics with 95% confidence intervals.
+            **kwargs: Additional arguments to pass to `compute_with_ci`.
+
+        Returns:
+            If with_ci=False:
+                dict of metric_name → score
+            If with_ci=True:
+                tuple: (metrics_dict, error_bars_dict)
+                where:
+                    - metrics_dict = metric_name → score
+                    - error_bars_dict = metric_name → (lower_error, upper_error)
+        """
         y_pred = model.predict(X)
 
         if with_ci:
-            # Use inherited method that returns dict of {metric: {value, ci_low, ci_high, sem}}
+            # Use inherited method that returns full CI dict
             ci_results = self.compute_with_ci(y_true, y_pred, **kwargs)
 
             metrics = {k: v["value"] for k, v in ci_results.items()}
@@ -101,5 +164,7 @@ class MetricsCalculator(MetricsCore):
                           for k, v in ci_results.items()}
             return metrics, error_bars
 
-        # Default simple scores
+        # Default: only compute point estimates
+        # NOTE: This method is kept for backwards compatibility.
+        # Prefer `compute_with_ci()` in new workflows.
         return self.compute(y_true, y_pred)
