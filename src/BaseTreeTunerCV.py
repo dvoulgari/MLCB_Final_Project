@@ -4,12 +4,16 @@ import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
-from BaseTreeClassifier import BaseTreeClassifier
+from BaseTreeClassifier import BaseTreeClassifier, TRAINING_DATASET
 from scipy.stats import bootstrap
+
+# Suppress warnings to keep notebooks clean. Comment this out while debugging.
+import warnings
+warnings.filterwarnings('ignore')
 
 
 class BaseTreeTunerCV(BaseTreeClassifier, ABC):
-    def __init__(self, csv_path, test_size=0.33, random_state=42,
+    def __init__(self, csv_path=TRAINING_DATASET, test_size=0.33, random_state=42,
                  models_dir="../models", n_trials=20,
                  n_splits_outer=5, n_splits_inner=3):
         super().__init__(csv_path, test_size, random_state, models_dir)
@@ -108,24 +112,28 @@ class BaseTreeTunerCV(BaseTreeClassifier, ABC):
         final_pipeline = self.pipeline_builder.build(model)
         final_pipeline.fit(X_full, y_full)
 
-        self.save_model(suffix=suffix, pipeline=final_pipeline,
-                        label_encoder=self.label_encoder)
+        self.save_model(suffix=suffix, pipeline=final_pipeline)
 
     def evaluate_on_external_testset(self, external_csv_path, suffix='final'):
-        pipeline, label_encoder = self.load_model(suffix=suffix)
+        pipeline = self.load_model(suffix=suffix)
+        self.label_encoder = self.load_label_encoder()
 
         df_ext = pd.read_csv(external_csv_path)
         X_ext = df_ext[self.X_train.columns.tolist()]
         y_ext = df_ext["label"]
 
-        mask = y_ext.isin(label_encoder.classes_)
+        # Only evaluate on known labels
+        mask = y_ext.isin(self.label_encoder.classes_)
         X_ext = X_ext[mask]
         y_ext = y_ext[mask]
-        y_ext_encoded = label_encoder.transform(y_ext)
+        y_ext_encoded = self.label_encoder.transform(y_ext)
+
         y_pred = pipeline.predict(X_ext)
 
         report = classification_report(
-            y_ext_encoded, y_pred, target_names=label_encoder.classes_, output_dict=True)
+            y_ext_encoded, y_pred, target_names=self.label_encoder.classes_, output_dict=True
+        )
         cm = confusion_matrix(y_ext_encoded, y_pred)
         stats = self.metrics_calculator.compute(y_ext_encoded, y_pred)
+
         return report, cm, stats
