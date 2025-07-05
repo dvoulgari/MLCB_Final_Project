@@ -165,7 +165,9 @@ class MetricsCalculator(MetricsCore):
             metrics = {k: v["value"] for k, v in ci_results.items()}
             error_bars = {k: (v["value"] - v["ci_low"], v["ci_high"] - v["value"])
                           for k, v in ci_results.items()}
-            return metrics, error_bars
+            sems = {k: v["sem"] for k, v in ci_results.items()}
+
+            return metrics, error_bars, sems
 
         # Default: only compute point estimates
         # NOTE: This method is kept for backwards compatibility.
