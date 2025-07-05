@@ -111,12 +111,15 @@ class MetricsCore:
             value = fn(y_true, y_pred)
             res = bootstrap((y_true, y_pred), fn,
                             n_resamples=n_resamples,
-                            confidence_level=1-alpha,
+                            confidence_level=1 - alpha,
                             random_state=rng,
-                            method="basic")
+                            method="basic",
+                            vectorized=False,
+                            paired=True,
+                            axis=-1)
             ci_low = res.confidence_interval.low
             ci_high = res.confidence_interval.high
-            sem = np.std([fn(y_true, y_pred)], ddof=1) / np.sqrt(len(y_true))
+            sem = res.standard_error
 
             results[name] = {
                 "value": round(100 * value, 2),
