@@ -29,7 +29,7 @@ class XGBoostBaselineClassifier:
 
         self.metrics_calculator = MetricsCore()
         self.pipeline_builder = PipelineBuilder()
-        self.io = DiskIO()
+        self.io = DiskIO(MODELS_DIR)
 
     def load_and_prepare_data(self):
             data = pd.read_csv(self.csv_path, index_col=0)
@@ -77,7 +77,7 @@ class XGBoostBaselineClassifier:
         plt.tight_layout()
         plt.show()
 
-    def save_model(self, suffix='', pipeline=None, label_encoder=None):
+    def save_model(self, suffix='baseline', pipeline=None, label_encoder=None):
         if pipeline is None or label_encoder is None:
             raise ValueError("pipeline and label_encoder must be provided")
 

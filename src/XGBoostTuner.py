@@ -20,6 +20,7 @@ from XGBoostBaselineClassifier import (
 from DiskIO import DiskIO
 from PipelineBuilder import PipelineBuilder
 from MetricsCore import MetricsCalculator
+
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
 
@@ -233,70 +234,8 @@ class XGBoostTunerCV(XGBoostBaselineClassifier):
             name="XGBoost",
             suffix=suffix
         )
-
-    def bootstrap_metrics(self, X, y, n_bootstrap=1000, random_state=None):
-        """
-        Calculate bootstrap confidence intervals and standard error
-        Returns dictionary with metrics, CIs, and standard error
-        """
-        # Initialize metrics calculator
-        metrics_calc = MetricsCalculator(metrics=['Accuracy', 'Recall', 'Specificity', 'PPV', 'NPV', 'F1'])
-
-        # Initialize storage for all metrics
-        metric_names = metrics_calc.METRICS
-        metrics = {name: [] for name in metric_names}
-        
-        rng = np.random.RandomState(random_state)
-        
-        for _ in range(n_bootstrap):
-            # Create bootstrap sample
-            indices = rng.choice(len(y), size=len(y), replace=True)
-            X_bs = X.iloc[indices] if hasattr(X, 'iloc') else X[indices]
-            y_bs = y[indices]
-
-            # Calculate metrics using your MetricsCalculator
-            metrics_dict = metrics_calc.compute(y_bs, self.pipeline.predict(X_bs))
-            
-            # Store all metrics
-            for name, value in metrics_dict.items():
-                metrics[name].append(value / 100)  # Convert from percentage back to ratio
-        
-        # Calculate mean, CI, and standard error
-        ci = {}
-        for metric, values in metrics.items():
-            mean = np.mean(values)
-            std_error = np.std(values, ddof=1)  # Standard error of the mean (SEM)
-            
-            ci[metric] = {
-                'mean': mean,
-                'std_error': std_error,  
-                'lower': np.percentile(values, 2.5),
-                'upper': np.percentile(values, 97.5)
-            }
-        
-        return ci
-
-    def plot_bootstrap_results(self, ci, title="Bootstrap Results (Mean ± SEM)"):
-        """
-        Plot metrics with error bars showing ±1 SEM
-        """
-        metrics = list(ci.keys())
-        means = [ci[m]['mean'] for m in metrics]
-        errors = [ci[m]['std_error'] for m in metrics]  # Use SEM instead of CI
-        
-        plt.figure(figsize=(12, 6))
-        plt.errorbar(metrics, means, yerr=errors, fmt='o', 
-                    capsize=5, capthick=2, markersize=8)
-        plt.title(title)
-        plt.ylabel('Score (0-1 scale)')
-        plt.ylim(0, 1)
-        plt.grid(True)
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.show()
     
-    def evaluate_on_external_testset(self, external_csv_path="data/kotliarov.csv", suffix='final', 
-                                n_bootstrap=1000, plot_results=True):
+    def evaluate_on_external_testset(self, external_csv_path="../data/kotliarov.csv", suffix='final'):
         loaded_obj = self.io.load(name="XGBoost", suffix=suffix)
 
         if isinstance(loaded_obj, tuple) and len(loaded_obj) == 2:
@@ -304,6 +243,14 @@ class XGBoostTunerCV(XGBoostBaselineClassifier):
         else:
             pipeline = loaded_obj
             label_encoder = self.label_encoder
+        
+        # Store the loaded pipeline
+        try:
+            self.pipeline = pipeline
+        except Exception:
+            # Fall back to current pipeline if loading fails
+            if not hasattr(self, 'pipeline'):
+                raise RuntimeError("No trained model available and couldn't load saved model")
 
         df_ext = pd.read_csv(external_csv_path)
         X_ext = df_ext[self.X_train.columns.tolist()]
@@ -324,13 +271,5 @@ class XGBoostTunerCV(XGBoostBaselineClassifier):
         )
         cm = confusion_matrix(y_ext_encoded, y_pred)
         stats = self.metrics_calculator.compute(y_ext_encoded, y_pred)
-        
-        # Add bootstrap CIs
-        bootstrap_ci = self.bootstrap_metrics(X_ext, y_ext_encoded, n_bootstrap=n_bootstrap)
-        stats['bootstrap_ci'] = bootstrap_ci
-        
-        if plot_results:
-            self.plot_bootstrap_results(bootstrap_ci, 
-                                    title="Bootstrap Confidence Intervals on Test Set")
         
         return report, cm, stats
